@@ -165,7 +165,7 @@ namespace gorillasounds.Source
                 if (GUI.Button(new Rect(260, 350, 40, 20), "(R)"))
                 {
                     songs.Clear();
-                    foreach (string filePath in Directory.GetFiles(Application.dataPath + "\\GS Files\\Sounds"))
+                    foreach (string filePath in Directory.GetFiles(Paths.GameRootPath + "\\GS Files\\Sounds"))
                     {
                         Song add = new Song { name = Path.GetFileNameWithoutExtension(filePath), path = filePath };
                         StartCoroutine(downloadAudioFile(filePath, add));
