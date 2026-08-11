@@ -34,11 +34,6 @@ namespace gorillasounds.Source
         public Stack<int> prevSongs = new Stack<int>();
         public Stack<int> shuffledSongs = new Stack<int>();
         bool shuffling;
-        public enum sources
-        {
-            monkeneedtoswing = 0,
-
-        }
         void Start()
         {
             src = gameObject.AddComponent<AudioSource>();
