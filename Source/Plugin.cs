@@ -42,8 +42,8 @@ namespace gorillasounds.Source
         void Start()
         {
             src = gameObject.AddComponent<AudioSource>();
-            if (!Directory.Exists(Application.dataPath + "\\GS Files\\Sounds")) Directory.CreateDirectory(Application.dataPath + "\\GS Files\\Sounds");
-            foreach (string filePath in Directory.GetFiles(Application.dataPath + "\\GS Files\\Sounds"))
+            if (!Directory.Exists(Paths.GameRootPath + "\\GS Files\\Sounds")) Directory.CreateDirectory(Paths.GameRootPath + "\\GS Files\\Sounds");
+            foreach (string filePath in Directory.GetFiles(Paths.GameRootPath + "\\GS Files\\Sounds"))
             {
                 Song add = new Song { name = Path.GetFileNameWithoutExtension(filePath), path = filePath };
                 StartCoroutine(downloadAudioFile(filePath, add));
