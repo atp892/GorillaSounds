@@ -46,10 +46,7 @@ namespace gorillasounds.Source
         {
             src = gameObject.AddComponent<AudioSource>();
             if (File.Exists(Paths.GameRootPath + "\\GS Files\\save.json")) overridenSongs = JsonMapper.ToObject<Dictionary<string, string>>(File.ReadAllText(Paths.GameRootPath + "\\GS Files\\save.json"));
-            if (overridenSongs == null)
-            {
-                overridenSongs = new Dictionary<string, string>();
-            }
+            overridenSongs ??= new Dictionary<string, string>();
             if (!Directory.Exists(Paths.GameRootPath + "\\GS Files\\Sounds")) Directory.CreateDirectory(Paths.GameRootPath + "\\GS Files\\Sounds");
             foreach (string filePath in Directory.GetFiles(Paths.GameRootPath + "\\GS Files\\Sounds").Where(x => x.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".ogg", StringComparison.OrdinalIgnoreCase)))
             {
@@ -70,9 +67,10 @@ namespace gorillasounds.Source
             for (int i = 0; i < overridenSongs.Keys.Count; i++)
             {
                 string[] keys = overridenSongs.Keys.ToArray();
-                if (!savedClips.ContainsKey(keys[i]) && songs.Select(s => s.name).ToArray().Contains(overridenSongs[keys[i]]) && MusicManager.Instance.activeSources.Select(s => s.audioSource.name == keys[i]).ToArray().Length > 0)
+                if (!savedClips.ContainsKey(keys[i]) && songs.Select(s => s.name).ToArray().Contains(overridenSongs[keys[i]]) && MusicManager.Instance.activeSources.Where(s => s.audioSource.name == keys[i]).ToArray().Length > 0)
                 {
                     ReplaceClip(MusicManager.Instance.activeSources.Where(s => s.audioSource.name == keys[i]).ToArray()[0].audioSource, songs.Where(s => s.name == overridenSongs[keys[i]]).ToArray()[0]);
+                    Debug.Log("replaced " + MusicManager.Instance.activeSources.Where(s => s.audioSource.name == keys[i]).ToArray()[0].audioSource.name + " with " + songs.Where(s => s.name == overridenSongs[keys[i]]).ToArray()[0].name);
                 }
             }
             foreach (MusicSource m in MusicManager.Instance.activeSources)
