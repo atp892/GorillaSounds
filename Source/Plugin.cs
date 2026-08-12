@@ -34,6 +34,11 @@ namespace gorillasounds.Source
         public Stack<int> prevSongs = new Stack<int>();
         public Stack<int> shuffledSongs = new Stack<int>();
         bool shuffling;
+        Dictionary<string, string> songNameOverrides = new Dictionary<string, string>()
+        {
+            ["monkeneedtoswing"] = "Forest Music",
+            ["ForestSpeakerAudioSrc_BackupCampfireSong"] = "Campfire Song",
+        };
         void Start()
         {
             src = gameObject.AddComponent<AudioSource>();
@@ -202,7 +207,7 @@ namespace gorillasounds.Source
                     if (selected == i && !playing) GUI.Label(new Rect(-50, i * 20, 220, 20), "(selected)");
                     GUI.Box(new Rect(0, i * 20, 200, 20), "");
                     string name = songs[i].name;
-
+                    if (songNameOverrides.ContainsKey(name.Trim())) name = songNameOverrides[name];
                     GUI.Label(new Rect(0, i * 20, 160, 20), name);
                     if (GUI.Button(new Rect(180, i * 20, 20, 20), ">"))
                     {
@@ -240,7 +245,20 @@ namespace gorillasounds.Source
         }
         IEnumerator downloadAudioFile(string path, Song s)
         {
-            UnityWebRequest req = UnityWebRequestMultimedia.GetAudioClip("file:///" + path, AudioType.MPEG);
+            AudioType t = AudioType.UNKNOWN;
+            switch (Path.GetFileName(path).Split('.')[^1]) {
+                case "mp3":
+                    t = AudioType.MPEG;
+                    break;
+                case "ogg":
+                    t = AudioType.OGGVORBIS;
+                    break;
+                case "wav":
+                    t = AudioType.WAV;
+                    break;
+            }
+                
+            UnityWebRequest req = UnityWebRequestMultimedia.GetAudioClip("file:///" + path, t);
             yield return req.SendWebRequest();
 
             s.clip = DownloadHandlerAudioClip.GetContent(req);
