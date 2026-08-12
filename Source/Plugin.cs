@@ -1,14 +1,14 @@
-﻿using System;
+﻿using BepInEx;
+using LitJson;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using BepInEx;
-using GorillaNetworking;
-using GorillaTag.Audio;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Networking;
+using static gorillasounds.Source.Plugin;
 
 namespace gorillasounds.Source
 {
@@ -34,14 +34,22 @@ namespace gorillasounds.Source
         public Stack<int> prevSongs = new Stack<int>();
         public Stack<int> shuffledSongs = new Stack<int>();
         bool shuffling;
+        // i honestly dont want to change this I know its redundant
         Dictionary<string, string> songNameOverrides = new Dictionary<string, string>()
         {
             ["monkeneedtoswing"] = "Forest Music",
             ["ForestSpeakerAudioSrc_BackupCampfireSong"] = "Campfire Song",
         };
+        Dictionary<string, string> overridenSongs = new Dictionary<string, string>();
+        Dictionary<string, AudioClip> savedClips = new Dictionary<string, AudioClip>();
         void Start()
         {
             src = gameObject.AddComponent<AudioSource>();
+            if (File.Exists(Paths.GameRootPath + "\\GS Files\\save.json")) overridenSongs = JsonMapper.ToObject<Dictionary<string, string>>(File.ReadAllText(Paths.GameRootPath + "\\GS Files\\save.json"));
+            if (overridenSongs == null)
+            {
+                overridenSongs = new Dictionary<string, string>();
+            }
             if (!Directory.Exists(Paths.GameRootPath + "\\GS Files\\Sounds")) Directory.CreateDirectory(Paths.GameRootPath + "\\GS Files\\Sounds");
             foreach (string filePath in Directory.GetFiles(Paths.GameRootPath + "\\GS Files\\Sounds"))
             {
@@ -50,10 +58,30 @@ namespace gorillasounds.Source
                 songs.Add(add);
                 
             }
-            
+            src.clip = songs[0]?.clip;
+
+        }
+        void OnDestroy()
+        {
+            File.WriteAllText(Paths.GameRootPath + "\\GS Files\\save.json", JsonMapper.ToJson(overridenSongs));
         }
         void Update()
         {
+            for (int i = 0; i < overridenSongs.Keys.Count; i++)
+            {
+                string[] keys = overridenSongs.Keys.ToArray();
+                if (!savedClips.ContainsKey(keys[i]) && songs.Select(s => s.name).ToArray().Contains(overridenSongs[keys[i]]) && MusicManager.Instance.activeSources.Select(s => s.audioSource.name == keys[i]).ToArray().Length > 0)
+                {
+                    ReplaceClip(MusicManager.Instance.activeSources.Where(s => s.audioSource.name == keys[i]).ToArray()[0].audioSource, songs.Where(s => s.name == overridenSongs[keys[i]]).ToArray()[0]);
+                }
+            }
+            foreach (MusicSource m in MusicManager.Instance.activeSources)
+            {
+                if (m.audioSource.clip == null)
+                {
+                    ResetClip(m.audioSource);
+                }
+            }
             try
             {
                 if (playing && !src.isPlaying)
@@ -206,9 +234,8 @@ namespace gorillasounds.Source
                     if (currentSong == i && playing) GUI.Label(new Rect(-50, i * 20, 220, 20), "(playing)");
                     if (selected == i && !playing) GUI.Label(new Rect(-50, i * 20, 220, 20), "(selected)");
                     GUI.Box(new Rect(0, i * 20, 200, 20), "");
-                    string name = songs[i].name;
-                    if (songNameOverrides.ContainsKey(name.Trim())) name = songNameOverrides[name];
-                    GUI.Label(new Rect(0, i * 20, 160, 20), name);
+                    
+                    GUI.Label(new Rect(0, i * 20, 160, 20), songs[i].name);
                     if (GUI.Button(new Rect(180, i * 20, 20, 20), ">"))
                     {
                         currentSong = i;
@@ -231,12 +258,34 @@ namespace gorillasounds.Source
                     string sound = MusicManager.Instance.activeSources.ToArray()[i].name;
                     if (GUI.Button(new Rect(370, 20 + i * 20, 20, 20), ""))
                     {
-                        MusicManager.Instance.activeSources.ToArray()[i].audioSource.clip = songs[selected].clip;
+                        ReplaceClip(MusicManager.Instance.activeSources.ToArray()[i].audioSource, songs[selected]);
                     }
+                    if (GUI.Button(new Rect(350, 20 + i * 20, 20, 20), "R"))
+                    {
+                        ResetClip(MusicManager.Instance.activeSources.ToArray()[i].audioSource);   
+                    }
+                    if (songNameOverrides.ContainsKey(sound.Trim())) sound = songNameOverrides[sound.Trim()];
                     GUI.Label(new Rect(10, 20 + i * 20, 400, 20), $"replace {sound} with selected");
                 }
             }
             GUI.DragWindow();
+        }
+        public void ReplaceClip(AudioSource source, Song song)
+        {
+            if (savedClips.ContainsKey(source.name)) savedClips.Remove(source.name);
+            savedClips.Add(source.name, source.clip);
+            if (overridenSongs.ContainsKey(source.name) && overridenSongs[source.name] != song.name) overridenSongs.Remove(source.name);
+            else if (!overridenSongs.ContainsKey(source.name))
+            overridenSongs.Add(source.name, song.name);
+            source.clip = song.clip;
+        }
+        public void ResetClip(AudioSource source)
+        {
+            if (savedClips.ContainsKey(source.name)) 
+            { 
+                source.clip = savedClips[source.name];
+                overridenSongs.Remove(source.name);
+            }
         }
         string FormatTime(float t)
         {
