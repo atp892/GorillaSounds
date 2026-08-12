@@ -246,7 +246,7 @@ namespace gorillasounds.Source
         IEnumerator downloadAudioFile(string path, Song s)
         {
             AudioType t = AudioType.UNKNOWN;
-            switch (Path.GetFileName(path).Split('.')[^1]) {
+            switch (Path.GetExtension(path)) {
                 case "mp3":
                     t = AudioType.MPEG;
                     break;
