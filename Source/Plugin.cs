@@ -1,5 +1,5 @@
 using BepInEx;
-using LitJson;
+using BepInEx.Configuration;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -42,11 +42,26 @@ namespace gorillasounds.Source
         };
         Dictionary<string, string> overridenSongs = new Dictionary<string, string>();
         Dictionary<string, AudioClip> savedClips = new Dictionary<string, AudioClip>();
+        Dictionary<string, ConfigEntry<string>> replacementConfigs = new Dictionary<string, ConfigEntry<string>>();
+
         void Start()
         {
             src = gameObject.AddComponent<AudioSource>();
-            if (File.Exists(Paths.GameRootPath + "\\GS Files\\save.json")) overridenSongs = JsonMapper.ToObject<Dictionary<string, string>>(File.ReadAllText(Paths.GameRootPath + "\\GS Files\\save.json"));
-            overridenSongs ??= new Dictionary<string, string>();
+
+            // yea my names cody, yea i added the config...
+            foreach (KeyValuePair<ConfigDefinition, ConfigEntryBase> config in Config.ConfigEntries)
+            {
+                if (config.Key.Section == "Replacements")
+                {
+                    ConfigEntry<string> entry = config.Value as ConfigEntry<string>;
+                    if (entry != null)
+                    {
+                        overridenSongs[config.Key.Key] = entry.Value;
+                        replacementConfigs[config.Key.Key] = entry;
+                    }
+                }
+            }
+
             if (!Directory.Exists(Paths.GameRootPath + "\\GS Files\\Sounds")) Directory.CreateDirectory(Paths.GameRootPath + "\\GS Files\\Sounds");
             foreach (string filePath in Directory.GetFiles(Paths.GameRootPath + "\\GS Files\\Sounds").Where(x => x.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".ogg", StringComparison.OrdinalIgnoreCase)))
             {
@@ -58,10 +73,12 @@ namespace gorillasounds.Source
             src.clip = songs[0]?.clip;
 
         }
+
         void OnDestroy()
         {
-            File.WriteAllText(Paths.GameRootPath + "\\GS Files\\save.json", JsonMapper.ToJson(overridenSongs));
+            Config.Save();
         }
+
         void Update()
         {
             for (int i = 0; i < overridenSongs.Keys.Count; i++)
@@ -128,6 +145,7 @@ namespace gorillasounds.Source
                 r2 = GUI.Window(1, r2, Window, "Gorilla Sounds Replacer");
             }
         }
+
         void Shuffle()
         {
             foreach (Song s in songs)
@@ -135,6 +153,7 @@ namespace gorillasounds.Source
                 GrabRandom(shuffledSongs, 0, songs.Count);
             }
         }
+
         void GrabRandom(Stack<int> stack, int min, int max)
         {
             int rng = UnityEngine.Random.Range(min, max);
@@ -144,6 +163,7 @@ namespace gorillasounds.Source
             }
             else stack.Push(rng);
         }
+
         void Window(int id)
         {
             if (id == 0)
@@ -268,23 +288,40 @@ namespace gorillasounds.Source
             }
             GUI.DragWindow();
         }
+
         public void ReplaceClip(AudioSource source, Song song)
         {
             if (savedClips.ContainsKey(source.name)) savedClips.Remove(source.name);
             savedClips.Add(source.name, source.clip);
-            if (overridenSongs.ContainsKey(source.name) && overridenSongs[source.name] != song.name) overridenSongs.Remove(source.name);
-            else if (!overridenSongs.ContainsKey(source.name))
-            overridenSongs.Add(source.name, song.name);
+            if (overridenSongs.ContainsKey(source.name) && overridenSongs[source.name] != song.name)
+            {
+                overridenSongs.Remove(source.name);
+                replacementConfigs.Remove(source.name);
+                Config.Remove(new ConfigDefinition("Replacements", source.name));
+            }
+            if (!overridenSongs.ContainsKey(source.name))
+            {
+                overridenSongs.Add(source.name, song.name);
+                ConfigEntry<string> entry = Config.Bind("Replacements", source.name, song.name);
+                entry.Value = song.name;
+                replacementConfigs[source.name] = entry;
+            }
             source.clip = song.clip;
+            Config.Save();
         }
+
         public void ResetClip(AudioSource source)
         {
             if (savedClips.ContainsKey(source.name)) 
             { 
                 source.clip = savedClips[source.name];
                 overridenSongs.Remove(source.name);
+                replacementConfigs.Remove(source.name);
+                Config.Remove(new ConfigDefinition("Replacements", source.name));
+                Config.Save();
             }
         }
+
         string FormatTime(float t)
         {
             TimeSpan ts = TimeSpan.FromSeconds(t);
