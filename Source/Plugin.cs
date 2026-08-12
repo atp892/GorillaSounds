@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -38,7 +38,7 @@ namespace gorillasounds.Source
         {
             src = gameObject.AddComponent<AudioSource>();
             if (!Directory.Exists(Paths.GameRootPath + "\\GS Files\\Sounds")) Directory.CreateDirectory(Paths.GameRootPath + "\\GS Files\\Sounds");
-            foreach (string filePath in Directory.GetFiles(Paths.GameRootPath + "\\GS Files\\Sounds"))
+            foreach (string filePath in Directory.GetFiles(Paths.GameRootPath + "\\GS Files\\Sounds").Where(x => x.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".ogg", StringComparison.OrdinalIgnoreCase)))
             {
                 Song add = new Song { name = Path.GetFileNameWithoutExtension(filePath), path = filePath };
                 StartCoroutine(downloadAudioFile(filePath, add));
@@ -160,7 +160,7 @@ namespace gorillasounds.Source
                 if (GUI.Button(new Rect(260, 350, 40, 20), "(R)"))
                 {
                     songs.Clear();
-                    foreach (string filePath in Directory.GetFiles(Paths.GameRootPath + "\\GS Files\\Sounds"))
+                    foreach (string filePath in Directory.GetFiles(Paths.GameRootPath + "\\GS Files\\Sounds").Where(x => x.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".ogg", StringComparison.OrdinalIgnoreCase)))
                     {
                         Song add = new Song { name = Path.GetFileNameWithoutExtension(filePath), path = filePath };
                         StartCoroutine(downloadAudioFile(filePath, add));
@@ -238,11 +238,21 @@ namespace gorillasounds.Source
             TimeSpan ts = TimeSpan.FromSeconds(t);
             return ts.ToString(@"mm\:ss");
         }
+
+        // hi this is cody, i added support for .wav & .ogg :)
         IEnumerator downloadAudioFile(string path, Song s)
         {
-            UnityWebRequest req = UnityWebRequestMultimedia.GetAudioClip("file:///" + path, AudioType.MPEG);
+            AudioType audioType = Path.GetExtension(path).ToLower() switch
+            {
+                ".wav" => AudioType.WAV,
+                ".ogg" => AudioType.OGGVORBIS,
+                ".mp3" => AudioType.MPEG,
+                _ => AudioType.UNKNOWN
+            };
+        
+            UnityWebRequest req = UnityWebRequestMultimedia.GetAudioClip("file:///" + path, audioType);
             yield return req.SendWebRequest();
-
+        
             s.clip = DownloadHandlerAudioClip.GetContent(req);
         }
     }
